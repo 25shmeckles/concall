@@ -167,7 +167,8 @@ rule bwa_wrapper_bb:
 rule bwa_index:
     input:
         tide_bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide.sorted.bam",
-        tide_bam_full_length = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl.sorted.bam",
+        tide_bam_full_length = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_hg38.sorted.bam",
+        no_bb = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_no_bb.sorted.bam",
     output:
         done = touch("output/{SUP_SAMPLE}/07_stats_done/bwa_index_tide.done")
     conda:
@@ -175,6 +176,7 @@ rule bwa_index:
     shell:
         "samtools index {input.tide_bam};"
         "samtools index {input.tide_bam_full_length}"
+        "samtools index {input.no_bb}"
 
 #rule tidehunter_sing:
 #    input:
@@ -396,10 +398,10 @@ rule bwa_mem:
     input:
         reads=rules.cutadapt_tide.output.fasta_fl_cutadapt
     output:
-        sam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl.sam",
-        bam = temp("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl.bam"),
-        sorted = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl.sorted.bam",
-        done = touch("output/{SUP_SAMPLE}/07_stats_done/bwa_mem_tide.done")
+        sam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_hg38.sam",
+        bam = temp("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_hg38.bam"),
+        sorted = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_hg38.sorted.bam",
+        done = touch("output/{SUP_SAMPLE}/07_stats_done/bwa_mem_tide_hg38.done")
     threads: 8
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 10000,
@@ -407,7 +409,7 @@ rule bwa_mem:
     conda:
        "envs/bt.yaml"
     params:
-        ref_genome_fasta = config['genome'],
+        ref_genome_fasta = config['genome_hg38'],
         name = "{SUP_SAMPLE}"
     shell:
         "bwa mem -t 8 -c 100 -M -R '@RG\\tID:{params.name}\\tSM:{params.name}\\tPL:NANOPORE\\tLB:{params.name}' {params.ref_genome_fasta} {input.reads} > {output.sam};"
@@ -436,7 +438,7 @@ rule bwa_mem_ref_no_bb:
         "bwa mem -t 8 -c 100 -M -R '@RG\\tID:{params.name}\\tSM:{params.name}\\tPL:NANOPORE\\tLB:{params.name}' {params.ref_genome_fasta} {input.reads} > {output.sam};"
         "samtools view -h {output.sam} > {output.bam};"
         "samtools sort -l 7  {output.bam} > {output.sorted};"
-        "samtools index {output.sorted}"
+#        "samtools index {output.sorted}"
 
 
 rule plot_samtools_stats_no_bb_fl:
