@@ -52,9 +52,9 @@ def prepare_primer_sequences(bb_seq:str,
         sys.exit(1)
 
     if write_name:
-        with open(f"../data/seg/3_prime_{write_name}.fa", "w") as f:
+        with open(f"./data/seg/3_prime_{write_name}.fa", "w") as f:
             f.write("\n".join([f">3_prime_{write_name}",seq_3prime]))
-        with open(f"../data/seg/5_prime_{write_name}.fa", "w") as f:
+        with open(f"./data/seg/5_prime_{write_name}.fa", "w") as f:
             f.write("\n".join([f">5_prime_{write_name}",seq_5prime]))
     return (seq_3prime, seq_5prime)
 
@@ -67,7 +67,7 @@ def get_default_seq(bb_name):
     >>> get_default_seq("BBCR")[:34]
     'GGGCGGTATGTCATGCACACGAATCCCGAAGANT'
     '''
-    with open(f"./backbones.fa", "r") as f:
+    with open(f"./data/backbones/backbones.fa", "r") as f:
         flist = [x.strip() for x in f.readlines()]
         i = flist.index(f">{bb_name}")
         return flist[i+1]

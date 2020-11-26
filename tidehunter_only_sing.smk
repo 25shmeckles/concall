@@ -1,34 +1,33 @@
-#configfile:"configfiles/config-test2.yaml"
-SUP_SAMPLES = config['SUP_SAMPLES']
-TYPES = ["bb","ins"]
+# this is a snakefile for tidehunter_only pipeline. Provide configfile for a successful run.
 
-# gz or not gz
+# User defined file prefix name
+SUP_SAMPLES = config['SUP_SAMPLES']
+# check input data type. Should be specified in configfiles.
 if config['gz'] == True:
     SAMPLES, = glob_wildcards(config['rawdir']+"/{sample}.fastq.gz")
 else:
     SAMPLES, = glob_wildcards(config['rawdir']+"/{sample}.fastq")
+print("sample dir:", config['rawdir'])
 print(f"There are {len(SAMPLES)} samples, {SAMPLES}.")
-
-
+# end products of this pipeline
 rule all:
     input:
-        # timestamp, tide results, medaka results, cutadapt_info, bb_barcode(to be implement), tagged_bam_files (to be implement), samtools stats
         expand("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_timestamp.pickle", SUP_SAMPLE=SUP_SAMPLES),
-# bwa index for both tide and medaka
-        expand("output/{SUP_SAMPLE}/07_stats_done/bwa_index_tide.done", SUP_SAMPLE=SUP_SAMPLES),
-# samtool stats for tide
+# bam files index for tide and tide_fl 
+        expand("output/{SUP_SAMPLE}/07_stats_done/bam_index_tide.done", SUP_SAMPLE=SUP_SAMPLES),
+# samtool stats
         expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats.done", SUP_SAMPLE=SUP_SAMPLES),
+# map fasta file to genome without bb
         expand("output/{SUP_SAMPLE}/07_stats_done/bwa_mem_tide_no_bb.done", SUP_SAMPLE=SUP_SAMPLES),
+# stats mapped full length bam file
         expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_no_bb.done", SUP_SAMPLE=SUP_SAMPLES),
+# stats mapped all consensus bam file
         expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_no_bb_not_fl.done", SUP_SAMPLE=SUP_SAMPLES),
+# map fasta file to bb only. (check which reads contain backbones)
         expand("output/{SUP_SAMPLE}/07_stats_done/bwa_wrapper_bb_only.done", SUP_SAMPLE=SUP_SAMPLES),
- #       expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_medaka.done", SUP_SAMPLE=SUP_SAMPLES),
-# align bb sequence for extracting barcode (can also use tide to extract barcode)
-#        expand( "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb.sorted.bam", SUP_SAMPLE=SUP_SAMPLES),
-# per repeat bwa + sambamba result -- only for targeted
-        #expand("output/{SUP_SAMPLE}/04_done/{type}_sambamba.done", SUP_SAMPLE=SUP_SAMPLES, type = TYPES)
-localrules: all, get_timestamp, bedtool_getfasta, gz_fastq_get_fasta, fastq_get_fasta, aggregate_tide 
+localrules: all, get_timestamp, gz_fastq_get_fasta, fastq_get_fasta, aggregate_tide 
 
+# check if use singularity image for Tidehunter or not. Please specify in configfiles.
 if config['sing'] == True:
     ruleorder: tidehunter_sing > tidehunter_conda
     ruleorder:  tidehunter_sing_fl > tidehunter_conda_full_length
@@ -37,62 +36,55 @@ else:
     ruleorder:  tidehunter_conda_full_length > tidehunter_sing_fl
  
 ruleorder: bwa_mem > bwa_wrapper_tide_full_length
+
+# retrieve time_stamp for each read, store as pickle file.
 rule get_timestamp:
     input:
         fasta = expand("output/{SUP_SAMPLE}/00_fasta/{SAMPLE}.fasta", SAMPLE=SAMPLES, SUP_SAMPLE=SUP_SAMPLES)
+        #fastq = ancient(config['rawdir']+"/{sample}.fastq.gz"),
     output:
         timestamp = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_timestamp.pickle"
     params:
-        fa = "output/{SUP_SAMPLE}/00_fasta/",
+        fq = config['rawdir'],
         name= "{SUP_SAMPLE}"
     conda:
         "envs/bt.yaml"
     shell:
-        "python scripts/get_timestamp.py -i {params.fa} -o {output.timestamp} -n {params.name} --datype 'fa' " 
+        "python scripts/get_timestamp.py -i {params.fq} -o {output.timestamp} -n {params.name} --datype 'fq' " 
 
-rule bedtool_getfasta:
-#    group: "bowtie_split"
-    input:
-        seg = "data/seg/{seg}.bed",
-        #ref = "/hpc/cog_bioinf/GENOMES/Homo_sapiens.GRCh37.GATK.illumina/Homo_sapiens.GRCh37.GATK.illumina.fasta"
-	ref = config['genome']
-    output:
-	"data/seg/{seg}.fa"
-#        expand("data/seg/{seg}.fa",seg = SEG)
-    shell:
-        "bedtools getfasta -fi /hpc/cog_bioinf/GENOMES/Homo_sapiens.GRCh37.GATK.illumina/Homo_sapiens.GRCh37.GATK.illumina.fasta -bed {input.seg} -fo {output}"
+# convert fastq files to fasta files.
 rule gz_fastq_get_fasta:
     # this rule takes > 5 sec < 60 sec to generate output files while submitted to cluster.
-#    group: "bowtie_split"
     input:
         gz = ancient(config['rawdir']+"/{sample}.fastq.gz")
     output:
-        touch("output/{SUP_SAMPLE}/01_bowtie/{sample}/createfolder.done"),
-        fastq = temp("output/{SUP_SAMPLE}/00_fasta/{sample}.fastq"),
         fasta = temp("output/{SUP_SAMPLE}/00_fasta/{sample}.fasta")
+    conda:
+        "envs/bt.yaml"
+#    log:
+#        "log/{SUP_SAMPLE}/{SUP_SAMPLE}_{sample}_pyfastx_fastq_to_fasta.log"
     shell:
-        "zcat {input.gz} > {output.fastq};\
-         sed -n '1~4s/^@/>/p;2~4p' {output.fastq} > {output.fasta}"
+        "pyfastx fq2fa {input.gz} -o {output.fasta}"
+
 rule fastq_get_fasta:
-#    group: "bowtie_split"
     input:
         fastq  = ancient(config['rawdir']+"/{sample}.fastq")
     output:
-        touch("output/{SUP_SAMPLE}/01_bowtie/{sample}/createfolder.done"),
         fasta = temp("output/{SUP_SAMPLE}/00_fasta/{sample}.fasta")
+    conda:
+        "envs/bt.yaml"
     shell:
-        "sed -n '1~4s/^@/>/p;2~4p' {input.fastq} > {output.fasta}"
+        "pyfastx fq2fa {input.fastq} -o {output.fasta}"
+#        "sed -n '1~4s/^@/>/p;2~4p' {input.fastq} > {output.fasta}"
 
 
 rule aggregate_tide:
     input:
         tide_all = expand("output/{SUP_SAMPLE}/09_tide/{sample}_tide_consensus.fasta", SUP_SAMPLE=SUP_SAMPLES, sample=SAMPLES),
         tide_fasta_full_length = expand("output/{SUP_SAMPLE}/09_tide/{sample}_tide_consensus_full_length.fasta", SUP_SAMPLE=SUP_SAMPLES, sample=SAMPLES),
-        #tsv=expand("output/{SUP_SAMPLE}/05_aggregate09_tide/{sample}_tide_consensus.tsv", SUP_SAMPLE=SUP_SAMPLES, sample=SAMPLES)
     output:
         tide_all = temp("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus.fasta"),
         tide_full_length = temp("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus_full_length.fasta"),
-        #done = touch("output/{SUP_SAMPLE}/04_done/aggregate_tide.done")
     params:
         tide = "output/{SUP_SAMPLE}/09_tide",
     shell:
@@ -158,42 +150,19 @@ rule bwa_wrapper_bb:
     wrapper:
         "0.50.0/bio/bwa/mem"
 
-#rule samtools_index:
-#    input:        
-#    output:
-#    wrapper:
-#        "0.58.0/bio/samtools/index"
-
-rule bwa_index:
+rule bam_index:
     input:
         tide_bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide.sorted.bam",
         tide_bam_full_length = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_hg38.sorted.bam",
         no_bb = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_no_bb.sorted.bam",
     output:
-        done = touch("output/{SUP_SAMPLE}/07_stats_done/bwa_index_tide.done")
+        done = touch("output/{SUP_SAMPLE}/07_stats_done/bam_index_tide.done")
     conda:
         "envs/bt.yaml"
     shell:
         "samtools index {input.tide_bam};"
         "samtools index {input.tide_bam_full_length}"
         "samtools index {input.no_bb}"
-
-#rule tidehunter_sing:
-#    input:
-#       prime_3="data/seg/5_prime_bbcr.fa",
-#       prime_5="data/seg/3_prime_bbcr.fa",
-#       fasta="output/{SUP_SAMPLE}/00_fasta/{sample}.fasta"
-#    output:
-#        fasta=temp("output/{SUP_SAMPLE}/09_tide/{sample}_tide_consensus.fasta"),
-#        done=touch("output/{SUP_SAMPLE}/04_done/{sample}_tide.done")
-#    threads: 4
-#    singularity:
-#        "tidehunter.sif"
-#    resources:
-#        mem_mb=lambda wildcards, attempt: attempt * 20000,
-#        runtime=lambda wildcards, attempt, input: ( attempt * 1)
-#    shell:
-#        "/TideHunter-v1.2.2/bin/TideHunter -t {threads} -5 {input.prime_5} -3 {input.prime_3} {input.fasta} > {output.fasta}"
 
 rule tidehunter_conda_full_length:
     input:
@@ -228,7 +197,6 @@ rule tidehunter_conda:
         runtime=lambda wildcards, attempt, input: ( attempt * 1)
     shell:
        "TideHunter -t {threads}  {input.fasta} > {output.fasta} 2> {log.stdout}"
-
 
 rule tidehunter_sing:
     input:
@@ -268,7 +236,6 @@ rule trim_tide:
     # trim = cut too long read names into supplemental files
     # before BWA
     input:
-        # tidehunter_conda_full_length
         fasta_full_length="output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus_full_length.fasta",
         fasta_all="output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus.fasta"
     output:
@@ -281,7 +248,6 @@ rule trim_tide:
         "sed 's/,.*//' {input.fasta_full_length} > {output.fasta_full_length};"
 rule cutadapt_tide:
     input:
-        # trim_tide output
         tide="output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus_full_length_trimmed.fasta",
     output:
         cut_info="output/{SUP_SAMPLE}/06_cut/{SUP_SAMPLE}_tide_cutadapt_info.csv",
@@ -339,19 +305,26 @@ rule bwa_wrapper_tide_no_bb:
     wrapper:
         "0.58.0/bio/bwa/mem"
 
-#rule generate_bb_only_ref:
-#    input:
-#        
-#    output:
-#    log:
-#    params:
-#    threads:
-#    resources:
-#    shell:
- 
+# preprocessing. Run only if backbone is new.
+rule generate_bb_only_ref:
+    input:
+        bb = config['backbone_fa']
+    output:
+        done = touch("output/{SUP_SAMPLE}/04_done/gen_bb_ref.done")
+    log:
+        "log/{SUP_SAMPLE}/{SUP_SAMPLE}_bwa_gen_bb_ref.log" 
+    conda:
+        "envs/bt.yaml"
+    threads:4
+    resources:
+        mem_mb = lambda wildcards, attempt: attempt * 1000,
+        runtime = lambda wildcards, attempt, input: ( attempt * 1)
+    shell:
+        "bwa index {input.bb}" 
 
 rule bwa_wrapper_bb_only:
     input:
+        ref_built = "output/{SUP_SAMPLE}/04_done/gen_bb_ref.done",
         reads="output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus_trimmed.fasta",
     output:
         bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_only.sorted.bam",
@@ -359,7 +332,7 @@ rule bwa_wrapper_bb_only:
     log:
         "log/{SUP_SAMPLE}/{SUP_SAMPLE}_wrapper_bwa_bb_only.log"
     params:
-        index=config['bb_only_ref'],
+        index=config['backbone_fa'],
         extra=r"-R '@RG\tID:{SUP_SAMPLE}\tSM:{SUP_SAMPLE}'",
         sort="samtools",             # Can be 'none', 'samtools' or 'picard'.
         sort_order="coordinate",  # Can be 'queryname' or 'coordinate'.
@@ -415,7 +388,7 @@ rule bwa_mem:
         "bwa mem -t 8 -c 100 -M -R '@RG\\tID:{params.name}\\tSM:{params.name}\\tPL:NANOPORE\\tLB:{params.name}' {params.ref_genome_fasta} {input.reads} > {output.sam};"
         "samtools view -h {output.sam} > {output.bam};"
         "samtools sort -l 7  {output.bam} > {output.sorted};"
-     #   "samtools index {output.sorted};"
+        "samtools index {output.sorted};"
 
 rule bwa_mem_ref_no_bb:
     input:
@@ -451,14 +424,14 @@ rule plot_samtools_stats_no_bb_fl:
         done = touch("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_no_bb.done"),
     params:
         name = "{SUP_SAMPLE}_tide",
-        plot = "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_plot_fl_no_bb/"
+        #plot = "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_plot_fl_no_bb/"
     conda:
         "envs/bt.yaml"
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 1000,
     shell:
         "samtools stats {input.bam} > {output.stats};"
-        "plot-bamstats -p {params.plot}{params.name} {output.stats};"
+        #"plot-bamstats -p {params.plot}{params.name} {output.stats};"
         "cat {output.stats} | grep ^SN | cut -f 2- > {output.SN};"
         "cat {output.stats} | grep ^RL | cut -f 2- > {output.RL};"
 
@@ -473,14 +446,14 @@ rule plot_samtools_stats_no_bb:
         done = touch("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_no_bb_not_fl.done"),
     params:
         name = "{SUP_SAMPLE}_tide",
-        plot = "output/{SUP_SAMPLE}/05_aggregated/tide_stats_no_bb/{SUP_SAMPLE}_plot_no_bb/"
+        #plot = "output/{SUP_SAMPLE}/05_aggregated/tide_stats_no_bb/{SUP_SAMPLE}_plot_no_bb/"
     conda:
         "envs/bt.yaml"
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 1000,
     shell:
         "samtools stats {input.bam} > {output.stats};"
-        "plot-bamstats -p {params.plot}{params.name} {output.stats};"
+        #"plot-bamstats -p {params.plot}{params.name} {output.stats};"
         "cat {output.stats} | grep ^SN | cut -f 2- > {output.SN};"
         "cat {output.stats} | grep ^RL | cut -f 2- > {output.RL};"
 
@@ -495,21 +468,21 @@ rule plot_samtools_stats:
         done = touch("output/{SUP_SAMPLE}/07_stats_done/samtools_stats.done"),
     params:
         name = "{SUP_SAMPLE}_tide",
-        plot = "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_plot/"
+        #plot = "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_plot/"
     conda:
         "envs/bt.yaml"
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 1000,
     shell:
         "samtools stats {input.bam} > {output.stats};"
-        "plot-bamstats -p {params.plot}{params.name} {output.stats};"
+        #"plot-bamstats -p {params.plot}{params.name} {output.stats};"
         "cat {output.stats} | grep ^SN | cut -f 2- > {output.SN};"
         "cat {output.stats} | grep ^RL | cut -f 2- > {output.RL};"
 
-if config['mail'] == True:
+if config['mail']:
     onsuccess:
         print("Workflow finished, no error. Success!")
-        shell("mail -s 'Workflow finished, no error!' litingchen16@gmail.com < {log}")
+        shell(f"mail -s 'Workflow finished, no error!' {config['mail']} < {log}")
     onerror:
         print("An notice sent to Liting by mail.")
-        shell("mail -s 'an error occurred' litingchen16@gmail.com < {log}")
+        shell(f"mail -s 'an error occurred' {config['mail']} < {log}")

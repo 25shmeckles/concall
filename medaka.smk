@@ -15,26 +15,29 @@ rule all:
 # bwa index for both tide and medaka
         expand("output/{SUP_SAMPLE}/07_stats_done/bwa_index.done", SUP_SAMPLE=SUP_SAMPLES),
 # samtool stats for tide
-        expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats.done", SUP_SAMPLE=SUP_SAMPLES),
-        expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_medaka.done", SUP_SAMPLE=SUP_SAMPLES),
+#        expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats.done", SUP_SAMPLE=SUP_SAMPLES),
+#        expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_medaka.done", SUP_SAMPLE=SUP_SAMPLES),
 # align bb sequence for extracting barcode (can also use tide to extract barcode)
 #        expand( "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb.bam", SUP_SAMPLE=SUP_SAMPLES),
 # per repeat bwa + sambamba result -- only for targeted
         #expand("output/{SUP_SAMPLE}/04_done/{type}_sambamba.done", SUP_SAMPLE=SUP_SAMPLES, type = TYPES)
 localrules: all, bwasw, bwa_mem, get_timestamp, bedtool_getfasta, gz_fastq_get_fasta, fastq_get_fasta, aggregate_python, aggregate_tide, count_repeat, sambamba
-ruleorder: tidehunter_sing > tidehunter_conda
+
 rule get_timestamp:
     input:
         fasta = expand("output/{SUP_SAMPLE}/00_fasta/{SAMPLE}.fasta", SAMPLE=SAMPLES, SUP_SAMPLE=SUP_SAMPLES)
+        #fastq = ancient(config['rawdir']+"/{sample}.fastq.gz"),
     output:
         timestamp = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_timestamp.pickle"
     params:
-        fa = "output/{SUP_SAMPLE}/00_fasta/",
+        fq = config['rawdir'],
         name= "{SUP_SAMPLE}"
     conda:
         "envs/bt.yaml"
     shell:
-        "python scripts/get_timestamp.py -i {params.fa} -o {output.timestamp} -n {params.name} --datype 'fa' " 
+        "python scripts/get_timestamp.py -i {params.fq} -o {output.timestamp} -n {params.name} --datype 'fq' "
+
+
 
 rule bedtool_getfasta:
 #    group: "bowtie_split"
@@ -47,27 +50,36 @@ rule bedtool_getfasta:
 #        expand("data/seg/{seg}.fa",seg = SEG)
     shell:
         "bedtools getfasta -fi /hpc/cog_bioinf/GENOMES/Homo_sapiens.GRCh37.GATK.illumina/Homo_sapiens.GRCh37.GATK.illumina.fasta -bed {input.seg} -fo {output}"
+
+# convert fastq files to fasta files.
 rule gz_fastq_get_fasta:
     # this rule takes > 5 sec < 60 sec to generate output files while submitted to cluster.
-#    group: "bowtie_split"
     input:
         gz = ancient(config['rawdir']+"/{sample}.fastq.gz")
     output:
         touch("output/{SUP_SAMPLE}/01_bowtie/{sample}/createfolder.done"),
-        fastq = temp("output/{SUP_SAMPLE}/00_fasta/{sample}.fastq"),
-        fasta = temp("output/{SUP_SAMPLE}/00_fasta/{sample}.fasta")
+        fasta = temp("output/{SUP_SAMPLE}/00_fasta/{sample}.fasta"),
+    conda:
+        "envs/bt.yaml"
+    log:
+        "log/{SUP_SAMPLE}/{SUP_SAMPLE}_{sample}_pyfastx_gz_fastq_to_fasta.log"
     shell:
-        "zcat {input.gz} > {output.fastq};\
-         sed -n '1~4s/^@/>/p;2~4p' {output.fastq} > {output.fasta}"
+        "pyfastx fq2fa {input.gz} -o {output.fasta} > {log}"
+
 rule fastq_get_fasta:
-#    group: "bowtie_split"
     input:
         fastq  = ancient(config['rawdir']+"/{sample}.fastq")
     output:
         touch("output/{SUP_SAMPLE}/01_bowtie/{sample}/createfolder.done"),
         fasta = temp("output/{SUP_SAMPLE}/00_fasta/{sample}.fasta")
+    conda:
+        "envs/bt.yaml"
+    log:
+        "log/{SUP_SAMPLE}/{SUP_SAMPLE}_{sample}_pyfastx_fastq_to_fasta.log"
     shell:
-        "sed -n '1~4s/^@/>/p;2~4p' {input.fastq} > {output.fasta}"
+        "pyfastx fq2fa {input.fastq} -o {output.fasta} > {log}"
+#        "sed -n '1~4s/^@/>/p;2~4p' {input.fastq} > {output.fasta}"
+
 
 #rule batch_fasta:
 #    input:
@@ -131,7 +143,7 @@ rule bowtie_map_backbone_to_read:
     # http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#the-bowtie2-build-indexer
 #    group: "bowtie_split"
     input:
-        split_by = config["BBTYPE"],
+        split_by = config["backbone_fa"],
         done = ancient("output/{SUP_SAMPLE}/01_bowtie/{sample}/bowtie_build_{sample}.done")
     params:
         # -x expect to find index files at current folder, then in the
@@ -299,7 +311,7 @@ rule aggregate_python:
     output:
         csv = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_medaka_stats.csv",
         bb = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_consensus_bb.fasta",
-        ins = temp("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_consensus_ins.fasta"),
+        ins = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_consensus_ins.fasta",
         done = touch("output/{SUP_SAMPLE}/04_done/aggregate.done")
     params:
         bb = "output/{SUP_SAMPLE}/03_consensus/bb",
@@ -372,7 +384,7 @@ rule bwa_wrapper_after_cutadapt:
     log:
         "log/{SUP_SAMPLE}/{SUP_SAMPLE}_wrapper_bwa.log"
     params:
-        index=config["ref_genome_final"],
+        index=config["genome"],
         extra=r"-R '@RG\tID:{SUP_SAMPLE}\tSM:{SUP_SAMPLE}'",
         sort="samtools",             # Can be 'none', 'samtools' or 'picard'.
         sort_order="coordinate",  # Can be 'queryname' or 'coordinate'.
@@ -392,7 +404,7 @@ rule bwa_wrapper_bb:
     log:
         "log/{SUP_SAMPLE}/{SUP_SAMPLE}_wrapper_bwa.log"
     params:
-        index=config["ref_genome_final"],
+        index=config["genome"],
         extra=r"-R '@RG\tID:{SUP_SAMPLE}\tSM:{SUP_SAMPLE}'",
         sort="samtools",             # Can be 'none', 'samtools' or 'picard'.
         sort_order="coordinate",  # Can be 'queryname' or 'coordinate'.
@@ -407,7 +419,7 @@ rule bwa_wrapper_bb:
 rule bwa_index:
     input:
         bam="output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}-ins-clean.sorted.bam",
-        tide_bam= "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}-ins-clean-tide.sorted.bam",
+#        tide_bam= "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}-ins-clean-tide.sorted.bam",
         bb_bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb.sorted.bam",
     output:
         done = touch("output/{SUP_SAMPLE}/07_stats_done/bwa_index.done")
@@ -415,7 +427,7 @@ rule bwa_index:
         "envs/bt.yaml"
     shell:
         "samtools index {input.bam};"
-        "samtools index {input.tide_bam};"
+#        "samtools index {input.tide_bam};"
         "samtools index {input.bb_bam};"
 #rule bwa_whole:
 #    input:
@@ -482,7 +494,7 @@ rule postprocessing:
     threads: 2
     params:
         txt = "output/{SUP_SAMPLE}/05_aggregated/01_txt_{type}",
-        ref_genome_fasta = config["ref_genome_final"],
+        ref_genome_fasta = config["genome"],
         type= "{type}"
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 8000,
@@ -502,7 +514,7 @@ rule bwasw:
     params:
         fasta = "output/{SUP_SAMPLE}/05_aggregated/02_split_{type, \s+[2-3]}/consensus_{type, \s+[2-3]}_{count_name, \d+}.fasta",
         sorted = "output/{SUP_SAMPLE}/06_sorted",
-        ref_genome_fasta = config["ref_genome_final"],
+        ref_genome_fasta = config["genome"],
         name = "{SUP_SAMPLE}"
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 4000,
@@ -618,7 +630,7 @@ rule bwa_mem:
     params:
         fasta = "output/{SUP_SAMPLE}/05_aggregated/02_split_{type, \s+[2-3]}/consensus_{type, \s+[2-3]}_{count_name, \d+}.fasta",
         sorted = "output/{SUP_SAMPLE}/06_sorted",
-        ref_genome_fasta = config["ref_genome_final"],
+        ref_genome_fasta = config["genome"],
         name = "{SUP_SAMPLE}"
     shell:
         "bash scripts/bwa_mem.sh {params.fasta} {output.sam} {params.ref_genome_fasta} {params.name} {threads} {output.bam} {output.sorted}"
@@ -673,28 +685,12 @@ rule final_stats_aggregation_ins:
 #        "python scripts/calculate_depth_new_py37.py -i {params.base_folder} -o {params.out_folder}; mkdir -p {params.base_folder}/../../06_stats_{params.type};cp {params.base_folder}/*sambamba_out* {params.base_folder}../../06_stats_{params.type}"
 #        "python scripts/calculate_depth_new_py37.py -d {params.base_folder}; mkdir -p {params.base_folder}/04_sam {params.base_folder}/05_bam {params.base_folder}/06_sorted_bam {params.base_folder}/../../06_stats_{params.type};mv {params.base_folder}/*.sorted.bam {params.base_folder}/06_sorted_bam; mv {params.base_folder}/*.sam {params.base_folder}/04_sam; mv {params.base_folder}/*.bam* {params.base_folder}/05_bam; mv {params.base_folder}/*sambamba_out* {params.base_folder}/../../06_stats_{params.type}"
 
-rule tidehunter_sing:
-    input:
-       prime_3="data/seg/5_prime_bbcr.fa",
-       prime_5="data/seg/3_prime_bbcr.fa",
-       fasta="output/{SUP_SAMPLE}/00_fasta/{sample}.fasta"
-    output:
-        tsv="output/{SUP_SAMPLE}/05_aggregated/tide/{sample}_tide_consensus.tsv",
-        done=touch("output/{SUP_SAMPLE}/04_done/{sample}_tide.done")
-    threads: 4
-    singularity:
-        "tidehunter.sif"
-    resources:
-        mem_mb=lambda wildcards, attempt: attempt * 20000,
-        runtime=lambda wildcards, attempt, input: ( attempt * 1)
-    shell:
-        "/TideHunter-v1.4.2/bin/TideHunter -f 2 -t {threads} -5 {input.prime_5} -3 {input.prime_3} {input.fasta} > {output.tsv}"
 
 
 rule tidehunter_conda:
     input:
-       prime_3="data/seg/5_prime_bbcr.fa",
-       prime_5="data/seg/3_prime_bbcr.fa",
+       prime_3=config['5_prime'],
+       prime_5=config['3_prime'],       
        fasta="output/{SUP_SAMPLE}/00_fasta/{sample}.fasta"
     output:
         tsv="output/{SUP_SAMPLE}/05_aggregated/tide/{sample}_tide_consensus.tsv",
@@ -745,7 +741,7 @@ rule bwa_wrapper_tide:
     log:
         "log/{SUP_SAMPLE}/{SUP_SAMPLE}_wrapper_bwa.log"
     params:
-        index=config["ref_genome_final"],
+        index=config["genome"],
         extra=r"-R '@RG\tID:{SUP_SAMPLE}\tSM:{SUP_SAMPLE}'",
         sort="samtools",             # Can be 'none', 'samtools' or 'picard'.
         sort_order="coordinate",  # Can be 'queryname' or 'coordinate'.

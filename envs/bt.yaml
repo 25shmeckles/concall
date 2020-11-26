@@ -14,5 +14,6 @@ dependencies:
   - python-dateutil=2.8
   - picard=2.20
   - tidehunter=1.2
+  - pyfastx=0.7
 prefix: /hpc/cog_bioinf/ridder/users/lchen/miniconda37_2/envs/bt
 

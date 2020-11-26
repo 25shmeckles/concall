@@ -1,0 +1,136 @@
+name: test-concall-on-mac
+
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["macos-latest"]
+        python-version: ["3.7","3.8"]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+      - name: Check conda version
+        shell: bash -l {0}
+        run: |
+          conda info
+          conda list
+      - name: Install mamba and snakemake
+        run: |
+          conda install -c conda-forge mamba
+          echo "Creating python virtual environment by mamba..."
+          echo "mamba create -c conda-forge -c bioconda -n snakemake snakemake python=${{ matrix.python-version}}"
+          mamba create -c conda-forge -c bioconda -n snakemake snakemake python=${{ matrix.python-version}}
+          echo "Snakemake environment created"
+
+          # debugging info
+          echo "Before launching conda with corresponding shell, check conda and pythonversion"
+          echo ${SHELL}
+          which conda
+          which python
+          python --version
+          # tell conda which shell we are using so conda can work properly
+          eval "$(/usr/local/miniconda/condabin/conda shell.bash hook)"
+          conda activate snakemake
+
+
+          # debugging info
+          echo "After launcing conda with corresponding shell..."          
+          echo "${SHELL}"
+          echo "PY_VERSION is: ${{ matrix.python-version}}"
+          which conda
+          which python
+          python --version
+          # check if snakemake is working
+          which snakemake
+          snakemake --version
+
+      - name: smk-tidehunter
+        run: |
+          # eval tell conda which shell to use to work properly
+          eval "$(/usr/local/miniconda/bin/conda shell.bash hook)"
+          conda activate snakemake
+
+          # debugging info
+          echo ${SHELL}
+          which conda
+          which python
+          python --version
+          # check if snakemake is working
+          which snakemake
+          snakemake --version
+          echo ${GITHUB_WORKSPACE}
+
+          cd ${GITHUB_WORKSPACE}
+          snakemake --configfile ./configfiles/config-TESTGITHUB.yaml --snakefile tidehunter_only_sing.smk --cores 1 --use-conda
+          # clean up
+          rm -rf ${GITHUB_WORKSPACE}/output/
+      - name: smk-tidehunter-2cores
+        run: |
+          # eval conda path tell which shell to use
+          eval "$(/usr/local/miniconda/bin/conda shell.bash hook)"
+          conda activate snakemake
+          # debugging info
+          echo ${SHELL}
+          echo "PY_VERSION is: ${{ matrix.python-version}}"
+          which conda
+          which python
+          python --version
+          # check if snakemake is working
+          which snakemake
+          snakemake --version
+          echo ${GITHUB_WORKSPACE}
+          cd ${GITHUB_WORKSPACE}
+          snakemake --configfile ./configfiles/config-TESTGITHUB.yaml --snakefile tidehunter_only_sing.smk --cores 2 --use-conda
+          rm -rf ${GITHUB_WORKSPACE}/output/
+      - name: smk-medaka
+        run: |
+          # eval tell conda which shell to use to work properly
+          eval "$(/usr/local/miniconda/bin/conda shell.bash hook)"
+          conda activate snakemake
+
+          # debugging info
+          echo ${SHELL}
+          which conda
+          which python
+          python --version
+          # check if snakemake is working
+          which snakemake
+          snakemake --version
+          echo ${GITHUB_WORKSPACE}
+
+          cd ${GITHUB_WORKSPACE}
+          snakemake --configfile ./configfiles/config-TESTGITHUB.yaml --snakefile medaka.smk --cores 1 --use-conda
+          # clean up
+          rm -rf ${GITHUB_WORKSPACE}/output/
+      - name: smk-medaka-2cores
+        run: |
+          # eval tell conda which shell to use to work properly
+          eval "$(/usr/local/miniconda/bin/conda shell.bash hook)"
+          conda activate snakemake
+
+          # debugging info
+          echo ${SHELL}
+          which conda
+          which python
+          python --version
+          # check if snakemake is working
+          which snakemake
+          snakemake --version
+          echo ${GITHUB_WORKSPACE}
+
+          cd ${GITHUB_WORKSPACE}
+          snakemake --configfile ./configfiles/config-TESTGITHUB.yaml --snakefile medaka.smk --cores 2 --use-conda
+          # clean up
+          rm -rf ${GITHUB_WORKSPACE}/output/
+
