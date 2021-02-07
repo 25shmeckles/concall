@@ -219,7 +219,7 @@ rule tidehunter_conda_full_length:
     log:
         stdout= "output/{SUP_SAMPLE}/04_done/{sample}_resource_fl.txt"
     conda:
-        "envs/th.yaml"
+        "envs/tidehunter.yaml"
     threads: 4
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 20000,
@@ -235,7 +235,7 @@ rule tidehunter_conda:
     log:
         stdout= "output/{SUP_SAMPLE}/04_done/{sample}_resource.txt"    
     conda:
-        "envs/th.yaml"
+        "envs/tidehunter.yaml"
     threads: 4
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 20000,
