@@ -9,6 +9,13 @@ else:
     SAMPLES, = glob_wildcards(config['rawdir']+"/{sample}.fastq")
 print("sample dir:", config['rawdir'])
 print(f"There are {len(SAMPLES)} samples, {SAMPLES}.")
+
+import sys
+
+argv = sys.argv
+submit_command = " ".join(sys.argv)
+snakefile_name = argv[argv.index("--snakefile") + 1]
+#print(snakefile_name)
 # end products of this pipeline
 rule all:
     input:
@@ -25,7 +32,8 @@ rule all:
         expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_no_bb_not_fl.done", SUP_SAMPLE=SUP_SAMPLES),
 # map fasta file to bb only. (check which reads contain backbones)
         expand("output/{SUP_SAMPLE}/07_stats_done/filter_bb_only.done", SUP_SAMPLE=SUP_SAMPLES),
-localrules: all, get_timestamp, gz_fastq_get_fasta, fastq_get_fasta, aggregate_tide 
+        expand("output/{SUP_SAMPLE}/05_aggregated/VERSION.log", SUP_SAMPLE=SUP_SAMPLES),
+localrules: all, get_timestamp, gz_fastq_get_fasta, fastq_get_fasta, aggregate_tide, get_version_control
 
 # check if use singularity image for Tidehunter or not. Please specify in configfiles.
 if config['sing'] == True:
@@ -36,6 +44,29 @@ else:
     ruleorder:  tidehunter_conda_full_length > tidehunter_sing_fl
  
 ruleorder: bwa_mem > bwa_wrapper_tide_full_length
+
+rule get_version_control:
+    #input:
+    #    "output/{SUP_SAMPLE}/07_stats_done/tide.done"     
+    output:
+        "output/{SUP_SAMPLE}/05_aggregated/VERSION.log"
+    params:
+        command = submit_command,
+        snakefile_name = snakefile_name
+    shell:
+        "echo executed command: {params.command} > {output};"
+        "echo  >> {output};"
+        "echo current directory: >> {output}; "
+        "pwd >> {output};"
+        "echo ================================ >> {output};"
+        "echo git log: >> {output};"
+        "git log -1  >> {output};"
+        "echo ================================ >> {output};"
+        "echo git status: >> {output};"
+        "git status >> {output};"
+        "echo ================================ >> {output};"
+        "echo git diff: >> {output};"
+        "git diff {params.snakefile_name} >> {output};"
 
 # retrieve time_stamp for each read, store as pickle file.
 rule get_timestamp:
@@ -85,6 +116,7 @@ rule aggregate_tide:
     output:
         tide_all = temp("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus.fasta"),
         tide_full_length = temp("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus_full_length.fasta"),
+        tide_done = touch("output/{SUP_SAMPLE}/07_stats_done/tide.done")
     params:
         tide = "output/{SUP_SAMPLE}/09_tide",
     shell:
