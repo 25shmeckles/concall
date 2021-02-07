@@ -161,8 +161,8 @@ rule bam_index:
         "envs/bt.yaml"
     shell:
         "samtools index {input.tide_bam};"
-        "samtools index {input.tide_bam_full_length}"
-        "samtools index {input.no_bb}"
+        "samtools index {input.tide_bam_full_length};"
+        "samtools index {input.no_bb};"
 
 rule tidehunter_conda_full_length:
     input:
@@ -174,7 +174,7 @@ rule tidehunter_conda_full_length:
     log:
         stdout= "output/{SUP_SAMPLE}/04_done/{sample}_resource_fl.txt"
     conda:
-        "envs/tidehunter.yaml"
+        "envs/th.yaml"
     threads: 4
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 20000,
@@ -190,7 +190,7 @@ rule tidehunter_conda:
     log:
         stdout= "output/{SUP_SAMPLE}/04_done/{sample}_resource.txt"    
     conda:
-        "envs/tidehunter.yaml"
+        "envs/th.yaml"
     threads: 4
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 20000,
