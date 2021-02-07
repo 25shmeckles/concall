@@ -115,10 +115,10 @@ jobs:
           echo ${GITHUB_WORKSPACE}
 
           cd ${GITHUB_WORKSPACE}
-          snakemake --configfile ./configfiles/config-TESTGITHUB.yaml --snakefile medaka.smk --cores 1 --use-conda
+          snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 1 --use-conda
           # clean up
           rm -rf ${GITHUB_WORKSPACE}/output/
-      - name: smk-tidehunter-2cores
+      - name: smk-medaka-2cores
         run: |
           # eval conda path tell which shell to use
           eval "$(/usr/share/miniconda/bin/conda shell.bash hook)"
@@ -134,5 +134,5 @@ jobs:
           snakemake --version
           echo ${GITHUB_WORKSPACE}
           cd ${GITHUB_WORKSPACE}
-          snakemake --configfile ./configfiles/config-TESTGITHUB.yaml --snakefile medaka.smk --cores 2 --use-conda
-          rm -rf ${GITHUB_WORKSPACE}/output/ 
+          snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 2 --use-conda
+          rm -rf ${GITHUB_WORKSPACE}/output/
