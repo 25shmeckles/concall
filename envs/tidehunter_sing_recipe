@@ -8,9 +8,9 @@ From: singularityhub/ubuntu
 %labels
    AUTHOR l.t.chen-4@umcutrecht.nl
 %post
-    wget https://github.com/yangao07/TideHunter/releases/download/v1.2.2/TideHunter-v1.2.2.tar.gz
-    tar -zxvf TideHunter-v1.2.2.tar.gz
-    cd TideHunter; make    
+    wget https://github.com/yangao07/TideHunter/releases/download/v1.4.3/TideHunter-v1.4.3.tar.gz
+    tar -zxvf TideHunter-v1.4.3.tar.gz
+    cd TideHunter-v1.4.3; make    
     apt-get update && apt-get -y install python3 git wget
     mkdir /data
     
