@@ -1,5 +1,5 @@
-Bootstrap: shub
-From: singularityhub/ubuntu
+Bootstrap: docker
+From: ubuntu:18.04
 
 %runscript
     ./bin/TideHunter ./test_data/test_1000x10.fa > cons.fa
@@ -8,9 +8,10 @@ From: singularityhub/ubuntu
 %labels
    AUTHOR l.t.chen-4@umcutrecht.nl
 %post
+    apt-get update
+    apt-get -y install python3 git wget build-essential zlib1g-dev
     wget https://github.com/yangao07/TideHunter/releases/download/v1.4.3/TideHunter-v1.4.3.tar.gz
     tar -zxvf TideHunter-v1.4.3.tar.gz
-    cd TideHunter-v1.4.3; make    
-    apt-get update && apt-get -y install python3 git wget
-    mkdir /data
-    
+    cd TideHunter-v1.4.3
+    make
+
