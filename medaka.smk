@@ -226,7 +226,7 @@ rule smolecule_ins:
     conda:
         "envs/smolecule-env.yaml"
     shell:
-         "ulimit -c 0; medaka smolecule --length 30 --depth 1 --threads {threads} {input.fasta} {output.con_folder} > {log}{resources.attempt} 2>&1"
+         "ulimit -c 0; medaka smolecule --length 30 --depth 1 --threads {threads} {output.con_folder} {input.fasta} > {log}{resources.attempt} 2>&1"
          #set +u; source activate snake-mdk; set -u;
          #medaka smolecule --length 50 --depth 5 --threads {threads} {input.fasta} {output.path} > {log} 2>&1
 
