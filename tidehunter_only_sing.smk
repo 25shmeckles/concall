@@ -24,7 +24,7 @@ rule all:
 # stats mapped all consensus bam file
         expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_no_bb_not_fl.done", SUP_SAMPLE=SUP_SAMPLES),
 # map fasta file to bb only. (check which reads contain backbones)
-        expand("output/{SUP_SAMPLE}/07_stats_done/bwa_wrapper_bb_only.done", SUP_SAMPLE=SUP_SAMPLES),
+        expand("output/{SUP_SAMPLE}/07_stats_done/filter_bb_only.done", SUP_SAMPLE=SUP_SAMPLES),
 localrules: all, get_timestamp, gz_fastq_get_fasta, fastq_get_fasta, aggregate_tide 
 
 # check if use singularity image for Tidehunter or not. Please specify in configfiles.
@@ -280,7 +280,7 @@ rule bwa_wrapper_tide:
         mem_mb=lambda wildcards, attempt: attempt * 10000,
         runtime=lambda wildcards, attempt, input: ( attempt * 4)
     wrapper:
-        "0.58.0/bio/bwa/mem"
+        "0.68.0/bio/bwa/mem"
 
 
 
@@ -327,7 +327,7 @@ rule bwa_wrapper_bb_only:
         ref_built = "output/{SUP_SAMPLE}/04_done/gen_bb_ref.done",
         reads="output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus_trimmed.fasta",
     output:
-        bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_only.sorted.bam",
+        bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_only_unfiltered.sorted.bam",
         done = touch("output/{SUP_SAMPLE}/07_stats_done/bwa_wrapper_bb_only.done")
     log:
         "log/{SUP_SAMPLE}/{SUP_SAMPLE}_wrapper_bwa_bb_only.log"
@@ -342,7 +342,19 @@ rule bwa_wrapper_bb_only:
         mem_mb=lambda wildcards, attempt: attempt * 10000,
         runtime=lambda wildcards, attempt, input: ( attempt * 4)
     wrapper:
-        "0.58.0/bio/bwa/mem"
+        "0.68.0/bio/bwa/mem"
+
+rule samtools_view_bb_only:
+    input:
+        sorted = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_only_unfiltered.sorted.bam"
+    output:
+        view = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_only.sorted.bam",
+        done = touch("output/{SUP_SAMPLE}/07_stats_done/filter_bb_only.done")
+    conda:
+        "envs/bt.yaml"
+    shell:
+        "samtools view -b -F 4 {input.sorted} > {output.view}"
+
 
 
 rule bwa_wrapper_tide_full_length:
