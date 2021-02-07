@@ -15,6 +15,15 @@ import sys
 argv = sys.argv
 submit_command = " ".join(sys.argv)
 snakefile_name = argv[argv.index("--snakefile") + 1]
+try:
+    configfile_content = argv[argv.index("--configfile") + 1]
+except Exception as e:
+    try:
+        configfile_content = argv[argv.index("--configfiles") + 1]
+    except Exception as e:
+        print("configfile not supplied. Guess ./Snakefile")
+        configfile_content = "Snakefile"
+
 #print(snakefile_name)
 # end products of this pipeline
 rule all:
@@ -52,10 +61,14 @@ rule get_version_control:
         "output/{SUP_SAMPLE}/05_aggregated/VERSION.log"
     params:
         command = submit_command,
-        snakefile_name = snakefile_name
+        snakefile_name = snakefile_name,
+        configfile_content = configfile_content,
     shell:
         "echo executed command: {params.command} > {output};"
         "echo  >> {output};"
+        "echo ================================ >> {output};"
+        "cat {params.configfile_content} >> {output};"
+        "echo ================================ >> {output};"
         "echo current directory: >> {output}; "
         "pwd >> {output};"
         "echo ================================ >> {output};"
