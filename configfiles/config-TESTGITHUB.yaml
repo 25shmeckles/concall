@@ -4,6 +4,8 @@ SUP_SAMPLES:
     TEST40
 gz:
     True
+genome_hg38: 
+    test/test_ref/test_ref.fasta  
 genome:
     test/test_ref/test_ref.fasta  
 backbone_fa:

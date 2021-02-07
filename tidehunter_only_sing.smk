@@ -207,12 +207,12 @@ rule tidehunter_sing:
     log:
         stdout= "output/{SUP_SAMPLE}/04_done/{sample}_resource.txt"    
     singularity:
-        "tidehunter.sif"
+        "tidehunter_143.sif"
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 20000,
         runtime=lambda wildcards, attempt, input: ( attempt * 1)
     shell:
-        "/TideHunter-v1.4.2/bin/TideHunter -t {threads} {input.fasta} > {output.fasta} 2> {log.stdout}"
+        "/TideHunter-v1.4.3/bin/TideHunter -t {threads} {input.fasta} > {output.fasta} 2> {log.stdout}"
 
 rule tidehunter_sing_fl:
     input:
@@ -223,14 +223,14 @@ rule tidehunter_sing_fl:
         fasta=temp("output/{SUP_SAMPLE}/09_tide/{sample}_tide_consensus_full_length.fasta"),
     threads: 4
     singularity:
-        "tidehunter.sif"
+        "tidehunter_143.sif"
     log:
         stdout= "output/{SUP_SAMPLE}/04_done/{sample}_resource_fl.txt"
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 20000,
         runtime=lambda wildcards, attempt, input: ( attempt * 1)
     shell:
-        "/TideHunter-v1.4.2/bin/TideHunter -t {threads} -5 {input.prime_5} -3 {input.prime_3} -p 20 -a 0.70 -F {input.fasta} > {output.fasta} 2>{log.stdout}"
+        "/TideHunter-v1.4.3/bin/TideHunter -t {threads} -5 {input.prime_5} -3 {input.prime_3} -p 20 -a 0.70 -F {input.fasta} > {output.fasta} 2>{log.stdout}"
 
 rule trim_tide:
     # trim = cut too long read names into supplemental files
