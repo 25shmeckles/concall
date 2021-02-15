@@ -11,11 +11,12 @@ print(f"There are {len(SAMPLES)} samples, {SAMPLES}.")
 rule all:
     input:
         # timestamp, tide results, medaka results, cutadapt_info, bb_barcode(to be implement), tagged_bam_files (to be implement), samtools stats
+# AFTER TEMP: enable this!!
 #        expand("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_timestamp.pickle", SUP_SAMPLE=SUP_SAMPLES),
-# bwa index for both tide and medaka
+# AFTER TEMP: enable this!! bwa index for both tide and medaka
 #        expand("output/{SUP_SAMPLE}/07_stats_done/bwa_index.done", SUP_SAMPLE=SUP_SAMPLES),
 # Temp modification for plotting structure file
-        expand("output/{SUP_SAMPLE}/02_split/stats/{sample}.pickle", SUP_SAMPLE=SUM_SAMPLES),
+        expand("output/{SUP_SAMPLE}/02_split/stats/{sample}.pickle", SUP_SAMPLE=SUP_SAMPLES, sample=SAMPLES),
 # samtool stats for tide
 #        expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats.done", SUP_SAMPLE=SUP_SAMPLES),
 #        expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_medaka.done", SUP_SAMPLE=SUP_SAMPLES),
