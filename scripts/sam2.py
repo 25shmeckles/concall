@@ -24,7 +24,7 @@ for read in samFile:
         if alnErr/float(read.reference_end) < 0.2:
             if (read.reference_end - read.reference_start) > 40:
                 #read.reference_start + read.infer_query_length(always=True)
-                myDict[read.reference_name].append((read.reference_start,read.reference_end,read.flag&(1<<4)>0,read.query_name))
+                myDict[read.reference_name].append((read.reference_start,read.reference_end,read.flag&(1<<4)>0))
     except TypeError as e:
         # if there is no matching reads in sam file
         touch.touch(ins_outFile)
@@ -72,7 +72,7 @@ with open(in_fasta_path,'r') as fasta_file, open(ins_outFile,'w') as dumpFile, \
                         0]])+'\n')
                 continue
 
-            cur_bbs = myDict[readId] = []
+            cur_bbs = myDict[readId]
             # Split sequence, dump backbone
             for i,x in enumerate(cur_bbs):
                 # print(x[1]-x[0])
