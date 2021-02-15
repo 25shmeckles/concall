@@ -189,7 +189,8 @@ rule split_by_backbone:
     output:
         bb = "output/{SUP_SAMPLE}/02_split/bb/{sample}.fasta",
         ins = "output/{SUP_SAMPLE}/02_split/ins/{sample}.fasta",
-        stats = "output/{SUP_SAMPLE}/02_split/stats/{sample}.csv"
+        stats = "output/{SUP_SAMPLE}/02_split/stats/{sample}.csv",
+        stats_read_dict = "output/{SUP_SAMPLE}/02_split/stats/{sample}.pickle"
     log:
         "log/{SUP_SAMPLE}/sam2_split_{sample}.log"
     resources:
@@ -199,7 +200,7 @@ rule split_by_backbone:
     #    "envs/pysam-env.yaml"
     shell:
         #"python scripts/sam2.py {input.sam} {input.fastq} {output}"
-        "python3 scripts/sam2.py {input.sam} {input.fasta} {output.bb} {output.ins} {output.stats} {params.min_insert_length} {params.max_insert_length}"
+        "python3 scripts/sam2.py {input.sam} {input.fasta} {output.bb} {output.ins} {output.stats} {params.min_insert_length} {params.max_insert_length} {output.stats_read_dict}"
 
 rule smolecule_ins:
 #    group: "smolecule"

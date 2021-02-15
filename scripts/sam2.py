@@ -3,6 +3,8 @@ import pysam
 import collections
 import numpy as np
 import touch
+import pickle
+
 samFile = pysam.AlignmentFile(sys.argv[1], "rb")
 in_fasta_path = sys.argv[2]
 bb_outFile = sys.argv[3]
@@ -10,7 +12,7 @@ ins_outFile = sys.argv[4]
 stats_outFile = sys.argv[5]
 min_gap = int(sys.argv[6])
 max_gap = int(sys.argv[7])
-
+out_readDict = sys.argv[8]
 ## enhancement: filter out short mapped backbones
 
 # Create a dict with lists of SimpleRead using referenceName as key. Only good quality backbone matches are recorded.
@@ -35,6 +37,9 @@ sortedKeys.sort()
 for key in sortedKeys:
     myDict[key].sort()
     # print(key,myDict[key])
+
+with open(out_readDict,'wb') as handle:
+    pickle.dump(myDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # exit()
 
@@ -67,7 +72,7 @@ with open(in_fasta_path,'r') as fasta_file, open(ins_outFile,'w') as dumpFile, \
                         0]])+'\n')
                 continue
 
-            cur_bbs = myDict[readId]
+            cur_bbs = myDict[readId] = []
             # Split sequence, dump backbone
             for i,x in enumerate(cur_bbs):
                 # print(x[1]-x[0])
@@ -89,8 +94,6 @@ with open(in_fasta_path,'r') as fasta_file, open(ins_outFile,'w') as dumpFile, \
             else:
                 RCA_length = [0]
             gaps = []
-            if min_gap < cur_bbs[0][0] < max_gap:
-                gaps.append((0,cur_bbs[0][0]))
 
             for i,x in enumerate(cur_bbs[1:]):
                 if min_gap < x[0] - cur_bbs[i][1] < max_gap:
@@ -112,8 +115,8 @@ with open(in_fasta_path,'r') as fasta_file, open(ins_outFile,'w') as dumpFile, \
 
             statFile.write(', '.join(
                 [str(y) for y in
-                    [readId,
-                    len(cur_bbs),
+		[readId,
+		len(cur_bbs),
                     sum([x[2] for x in cur_bbs]),
                     np.median([x[1]-x[0] for x in cur_bbs]),
                     len(gaps),
