@@ -79,7 +79,7 @@ rule get_version_control:
         "git status >> {output};"
         "echo ================================ >> {output};"
         "echo git diff: >> {output};"
-        "git diff {params.snakefile_name} >> {output};"
+        "git diff  >> {output};"
 
 # retrieve time_stamp for each read, store as pickle file.
 rule get_timestamp:
