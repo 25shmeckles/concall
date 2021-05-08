@@ -343,7 +343,7 @@ rule rotate_rca_reads_to_full_insert:
     conda:
         "envs/bt.yaml"
     shell:
-        "circular/rotate_by_cigar.py -i {input.bam} -o {output.fasta}"
+        "python circular/rotate_by_cigar.py -i {input.bam} -o {output.fasta}"
 
 rule remap_rotate_reads_by_bwa:
     input:
