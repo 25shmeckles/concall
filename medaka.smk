@@ -199,8 +199,8 @@ rule split_by_backbone:
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 1000,
         runtime=1
-    #conda:
-    #    "envs/pysam-env.yaml"
+    conda:
+        "envs/pysam.yaml"
     shell:
         #"python scripts/sam2.py {input.sam} {input.fastq} {output}"
         "python3 scripts/sam2.py {input.sam} {input.fasta} {output.bb} {output.ins} {output.stats} {params.min_insert_length} {params.max_insert_length} {output.stats_read_dict}"
@@ -811,10 +811,10 @@ rule plot_samtools_stats_medaka:
 #        done = touch("output/04_done/{sample}_cleanup.done")
 #    shell:
 #        "rm -rf output/00_fasta/{sample}/* output/01_bowtie/{sample}*"
-
-onsuccess:
-    print("Workflow finished, no error. Success!")
-    shell("mail -s 'Workflow finished, no error!' litingchen16@gmail.com < {log}")
-onerror:
-    print("An notice sent to Liting by mail.")
-    shell("mail -s 'an error occurred' litingchen16@gmail.com < {log}")
+if config["mail"]:
+    onsuccess:
+        print("Workflow finished, no error. Success!")
+        shell("mail -s 'Workflow finished, no error!' litingchen16@gmail.com < {log}")
+    onerror:
+        print("An notice sent to Liting by mail.")
+        shell("mail -s 'an error occurred' litingchen16@gmail.com < {log}")

@@ -115,6 +115,7 @@ jobs:
           echo ${GITHUB_WORKSPACE}
 
           cd ${GITHUB_WORKSPACE}
+          echo "execute command snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 1 --use-conda"
           snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 1 --use-conda
           # clean up
           rm -rf ${GITHUB_WORKSPACE}/output/
