@@ -2,8 +2,37 @@ import sys
 import pysam
 import collections
 import numpy as np
-import touch
 import pickle
+import os
+import values
+
+# unable to install touch with yaml env file. copy code here.
+def _fullpath(path):
+    return os.path.abspath(os.path.expanduser(path))
+
+
+def _mkdir(path):
+    if path.find("/") > 0 and not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
+
+
+def _utime(path):
+    try:
+        os.utime(path, None)
+    except Exception:
+        open(path, 'a').close()
+
+
+def touch(path):
+    """mkdir + touch path(s)"""
+    for path in values.get(path):
+        if path:
+            path = _fullpath(path)
+            _mkdir(path)
+            _utime(path)
+
+
+
 
 samFile = pysam.AlignmentFile(sys.argv[1], "rb")
 in_fasta_path = sys.argv[2]
@@ -27,9 +56,9 @@ for read in samFile:
                 myDict[read.reference_name].append((read.reference_start,read.reference_end,read.flag&(1<<4)>0))
     except TypeError as e:
         # if there is no matching reads in sam file
-        touch.touch(ins_outFile)
-        touch.touch(bb_outFile)
-        touch.touch(stats_outFile)
+        touch(ins_outFile)
+        touch(bb_outFile)
+        touch(stats_outFile)
         exit() 
 # Combine matches per read
 sortedKeys =list( myDict.keys())

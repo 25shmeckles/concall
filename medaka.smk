@@ -200,7 +200,7 @@ rule split_by_backbone:
         mem_mb=lambda wildcards, attempt: attempt * 1000,
         runtime=1
     conda:
-        "envs/pysam.yaml"
+        "envs/sampy2.yaml"
     shell:
         #"python scripts/sam2.py {input.sam} {input.fastq} {output}"
         "python3 scripts/sam2.py {input.sam} {input.fasta} {output.bb} {output.ins} {output.stats} {params.min_insert_length} {params.max_insert_length} {output.stats_read_dict}"

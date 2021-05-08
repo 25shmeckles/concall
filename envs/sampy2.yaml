@@ -1,0 +1,10 @@
+name: sampy2
+channels:
+  - bioconda
+  - defaults
+dependencies:
+  - pysam
+  - numpy
+  - pip:
+      - touch==2020.12.3
+      - values==2020.12.3

@@ -1,6 +1,0 @@
-name: pysam
-channels:
-  - bioconda
-  - defaults
-dependencies:
-  - pysam
