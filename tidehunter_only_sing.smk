@@ -31,12 +31,12 @@ rule all:
         expand("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_timestamp.pickle", SUP_SAMPLE=SUP_SAMPLES),
 # bam files index for tide and tide_fl 
         expand("output/{SUP_SAMPLE}/07_stats_done/bam_index_tide.done", SUP_SAMPLE=SUP_SAMPLES),
-# samtool stats
+# samtool stats --without rotation
         expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats.done", SUP_SAMPLE=SUP_SAMPLES),
 # map fasta file to genome without bb
         expand("output/{SUP_SAMPLE}/07_stats_done/bwa_mem_tide_no_bb.done", SUP_SAMPLE=SUP_SAMPLES),
 # stats mapped full length bam file
-        expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_no_bb.done", SUP_SAMPLE=SUP_SAMPLES),
+        expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_rotated.done", SUP_SAMPLE=SUP_SAMPLES),
 # stats mapped all consensus bam file
         expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_no_bb_not_fl.done", SUP_SAMPLE=SUP_SAMPLES),
 # map fasta file to bb only. (check which reads contain backbones)
@@ -197,7 +197,6 @@ rule bwa_wrapper_bb:
 
 rule bam_index:
     input:
-        tide_bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide.sorted.bam",
         tide_bam_full_length = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_hg38.sorted.bam",
         no_bb = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_no_bb.sorted.bam",
     output:
@@ -205,7 +204,6 @@ rule bam_index:
     conda:
         "envs/bt.yaml"
     shell:
-        "samtools index {input.tide_bam};"
         "samtools index {input.tide_bam_full_length};"
         "samtools index {input.no_bb};"
 
@@ -306,7 +304,6 @@ rule cutadapt_tide:
         "cutadapt -e 0.15 -b GGGCGGTATGTCATGCACACGAATCCCGAAGAnTGTTGTCCATTCATTGAATATGAGATCTCnATGGTATGATCAATATnCGGATGCGATATTGATAnCTGATAAATCATATATGCATAATCTCACATTATATTTATTATAATAAATCATCGTAGATATACACAATGTGAATTGTATACAATGGATAGTATAACTATCCAATTTCTTTGAGCATTGGCCTTGGTGTAGATTGCATGACATACCGCCC --action=lowercase --info-file {output.cut_info} -o {output.fasta_fl_cutadapt} {input.tide} > {output.summary}"
 
 rule bwa_wrapper_tide:
-    # without cutadapt
     input:
         reads="output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus_trimmed.fasta",
     output:
@@ -327,6 +324,47 @@ rule bwa_wrapper_tide:
     wrapper:
         "0.68.0/bio/bwa/mem"
 
+rule tide_not_fl_index:
+    input:
+        tide_bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide.sorted.bam",
+    output:
+        done = touch("output/{SUP_SAMPLE}/07_stats_done/ready_for_rotation.done")
+    conda:
+        "envs/bt.yaml"
+    shell:
+        "samtools index {input.tide_bam};"
+
+rule rotate_rca_reads_to_full_insert:
+    input:
+        indexed = "output/{SUP_SAMPLE}/07_stats_done/ready_for_rotation.done",
+        bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide.sorted.bam",
+    output:
+        fasta = temp("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_rotated.fasta"),
+    conda:
+        "envs/bt.yaml"
+    shell:
+        "circular/rotate_by_cigar.py -i {input.bam} -o {output.fasta}"
+
+rule remap_rotate_reads_by_bwa:
+    input:
+        reads=rules.rotate_rca_reads_to_full_insert.output.fasta,
+    output:
+        bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_rotated.sorted.bam",
+        done = touch("output/{SUP_SAMPLE}/07_stats_done/bwa_wrapper_tide_rotated.done")
+    log:
+        "log/{SUP_SAMPLE}/{SUP_SAMPLE}_wrapper_bwa.log"
+    params:
+        index=config["genome"],
+        extra=r"-R '@RG\tID:{SUP_SAMPLE}\tSM:{SUP_SAMPLE}'",
+        sort="samtools",             # Can be 'none', 'samtools' or 'picard'.
+        sort_order="coordinate",  # Can be 'queryname' or 'coordinate'.
+        sort_extra="-l 9"            # Extra args for samtools/picard.
+    threads: 8
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * 10000,
+        runtime=lambda wildcards, attempt, input: ( attempt * 4)
+    wrapper:
+        "0.74.0/bio/bwa/mem"
 
 
 rule bwa_wrapper_tide_no_bb:
@@ -525,14 +563,31 @@ rule plot_samtools_stats:
         done = touch("output/{SUP_SAMPLE}/07_stats_done/samtools_stats.done"),
     params:
         name = "{SUP_SAMPLE}_tide",
-        #plot = "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_plot/"
     conda:
         "envs/bt.yaml"
     resources:
         mem_mb=lambda wildcards, attempt: attempt * 1000,
     shell:
         "samtools stats {input.bam} > {output.stats};"
-        #"plot-bamstats -p {params.plot}{params.name} {output.stats};"
+        "cat {output.stats} | grep ^SN | cut -f 2- > {output.SN};"
+        "cat {output.stats} | grep ^RL | cut -f 2- > {output.RL};"
+
+rule plot_samtools_stats_rotated:
+    input:
+        bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_rotated.sorted.bam",
+    output:
+        stats = "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_rotated.stats",
+        SN = "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_rotated_SN_tag_read_mapped.txt",
+        RL =  "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_rotated_RL_tag_read_length.txt",
+        done = touch("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_rotated.done"),
+    params:
+        name = "{SUP_SAMPLE}_tide",
+    conda:
+        "envs/bt.yaml"
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * 1000,
+    shell:
+        "samtools stats {input.bam} > {output.stats};"
         "cat {output.stats} | grep ^SN | cut -f 2- > {output.SN};"
         "cat {output.stats} | grep ^RL | cut -f 2- > {output.RL};"
 
