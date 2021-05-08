@@ -15,5 +15,6 @@ dependencies:
   - picard=2.20
   - tidehunter=1.2
   - pyfastx=0.7
+  - pysam
 prefix: /hpc/cog_bioinf/ridder/users/lchen/miniconda37_2/envs/bt
 
