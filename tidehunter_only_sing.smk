@@ -364,8 +364,7 @@ rule remap_rotate_reads_by_bwa:
         mem_mb=lambda wildcards, attempt: attempt * 10000,
         runtime=lambda wildcards, attempt, input: ( attempt * 4)
     wrapper:
-        "0.74.0/bio/bwa/mem"
-
+        "0.68.0/bio/bwa/mem"
 
 rule bwa_wrapper_tide_no_bb:
     input:
