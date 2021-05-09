@@ -202,6 +202,8 @@ rule bam_index:
     input:
         tide_bam_full_length = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_hg38.sorted.bam",
         no_bb = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_fl_no_bb.sorted.bam",
+        bb_only = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_only_unfiltered.sorted.bam",
+        bb_only2 = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_only.sorted.bam"
     output:
         done = touch("output/{SUP_SAMPLE}/07_stats_done/bam_index_tide.done")
     conda:
@@ -209,6 +211,8 @@ rule bam_index:
     shell:
         "samtools index {input.tide_bam_full_length};"
         "samtools index {input.no_bb};"
+        "samtools index {input.bb_only};"
+        "samtools index {input.bb_only2};"
 
 rule tidehunter_conda_full_length:
     input:
