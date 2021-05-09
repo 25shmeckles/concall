@@ -41,6 +41,9 @@ rule all:
         expand("output/{SUP_SAMPLE}/07_stats_done/samtools_stats_no_bb_not_fl.done", SUP_SAMPLE=SUP_SAMPLES),
 # map fasta file to bb only. (check which reads contain backbones)
         expand("output/{SUP_SAMPLE}/07_stats_done/filter_bb_only.done", SUP_SAMPLE=SUP_SAMPLES),
+# stats of bb mapping
+        expand("output/{SUP_SAMPLE}/07_stats_done/bb_only_stats.done", SUP_SAMPLE=SUP_SAMPLES),
+# version log
         expand("output/{SUP_SAMPLE}/05_aggregated/VERSION.log", SUP_SAMPLE=SUP_SAMPLES),
 localrules: all, get_timestamp, gz_fastq_get_fasta, fastq_get_fasta, aggregate_tide, get_version_control
 
@@ -407,7 +410,7 @@ rule generate_bb_only_ref:
 rule bwa_wrapper_bb_only:
     input:
         ref_built = "output/{SUP_SAMPLE}/04_done/gen_bb_ref.done",
-        reads="output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_consensus_trimmed.fasta",
+        reads="output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_rotated.fasta",
     output:
         bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_only_unfiltered.sorted.bam",
         done = touch("output/{SUP_SAMPLE}/07_stats_done/bwa_wrapper_bb_only.done")
@@ -551,6 +554,24 @@ rule plot_samtools_stats_no_bb:
         "cat {output.stats} | grep ^SN | cut -f 2- > {output.SN};"
         "cat {output.stats} | grep ^RL | cut -f 2- > {output.RL};"
 
+rule plot_bb_only_stats:
+    input:
+        bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_only_unfiltered.sorted.bam",
+    output:
+        stats = "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_bb_only_unfiltered.stats",
+        SN = "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_bb_only_unfiltered_SN_tag_read_mapped.txt",
+        RL =  "output/{SUP_SAMPLE}/05_aggregated/tide_stats/{SUP_SAMPLE}_bb_only_unfiltered_RL_tag_read_length.txt",
+        done = touch("output/{SUP_SAMPLE}/07_stats_done/bb_only_stats.done"),
+    params:
+        name = "{SUP_SAMPLE}_tide",
+    conda:
+        "envs/bt.yaml"
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * 1000,
+    shell:
+        "samtools stats {input.bam} > {output.stats};"
+        "cat {output.stats} | grep ^SN | cut -f 2- > {output.SN};"
+        "cat {output.stats} | grep ^RL | cut -f 2- > {output.RL};"
 
 rule plot_samtools_stats:
     input:
