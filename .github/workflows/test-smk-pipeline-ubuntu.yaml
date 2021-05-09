@@ -98,42 +98,42 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           snakemake --configfile ./configfiles/config-TESTGITHUB.yaml --snakefile tidehunter_only_sing.smk --cores 2 --use-conda
           rm -rf ${GITHUB_WORKSPACE}/output/
-      - name: smk-medaka
-        run: |
-          # eval tell conda which shell to use to work properly
-          eval "$(/usr/share/miniconda/bin/conda shell.bash hook)"
-          conda activate snakemake
-
-          # debugging info
-          echo ${SHELL}
-          which conda
-          which python
-          python --version
-          # check if snakemake is working
-          which snakemake
-          snakemake --version
-          echo ${GITHUB_WORKSPACE}
-
-          cd ${GITHUB_WORKSPACE}
-          echo "execute command snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 1 --use-conda"
-          snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 1 --use-conda
-          # clean up
-          rm -rf ${GITHUB_WORKSPACE}/output/
-      - name: smk-medaka-2cores
-        run: |
-          # eval conda path tell which shell to use
-          eval "$(/usr/share/miniconda/bin/conda shell.bash hook)"
-          conda activate snakemake
-          # debugging info
-          echo ${SHELL}
-          echo "PY_VERSION is: ${{ matrix.python-version}}"
-          which conda
-          which python
-          python --version
-          # check if snakemake is working
-          which snakemake
-          snakemake --version
-          echo ${GITHUB_WORKSPACE}
-          cd ${GITHUB_WORKSPACE}
-          snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 2 --use-conda
-          rm -rf ${GITHUB_WORKSPACE}/output/
+#      - name: smk-medaka
+#        run: |
+#          # eval tell conda which shell to use to work properly
+#          eval "$(/usr/share/miniconda/bin/conda shell.bash hook)"
+#          conda activate snakemake
+#
+#          # debugging info
+#          echo ${SHELL}
+#          which conda
+#          which python
+#          python --version
+#          # check if snakemake is working
+#          which snakemake
+#          snakemake --version
+#          echo ${GITHUB_WORKSPACE}
+#
+#          cd ${GITHUB_WORKSPACE}
+#          echo "execute command snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 1 --use-conda"
+#          snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 1 --use-conda
+#          # clean up
+#          rm -rf ${GITHUB_WORKSPACE}/output/
+#      - name: smk-medaka-2cores
+#        run: |
+#          # eval conda path tell which shell to use
+#          eval "$(/usr/share/miniconda/bin/conda shell.bash hook)"
+#          conda activate snakemake
+#          # debugging info
+#          echo ${SHELL}
+#          echo "PY_VERSION is: ${{ matrix.python-version}}"
+#          which conda
+#          which python
+#          python --version
+#          # check if snakemake is working
+#          which snakemake
+#          snakemake --version
+#          echo ${GITHUB_WORKSPACE}
+#          cd ${GITHUB_WORKSPACE}
+#          snakemake --configfile ./configfiles/config-TESTGITHUB_MEDAKA.yaml --snakefile medaka.smk --cores 2 --use-conda
+#          rm -rf ${GITHUB_WORKSPACE}/output/
