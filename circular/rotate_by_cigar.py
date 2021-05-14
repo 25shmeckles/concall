@@ -13,13 +13,16 @@ class RcaProcessor:
     def rotate_bam_by_cigar(self):
         with open(self.write_fasta, "w+") as fasta:
             for i, read in enumerate(self.bam):
-                if not read.is_unmapped:
+                read_seq = read.get_forward_sequence()
+                if read.is_unmapped:
+                    fasta.write(f">{read.qname}\n")
+                    fasta.write(f">{read.read_seq}\n")
+                else:
                     if not read.is_supplementary:
                         left_soft = False
                         right_soft = False
                         rotate_head_to_tail = 0
                         rotate_tail_to_head = 0
-                        read_seq = read.get_forward_sequence()
                         read_len = len(read_seq)
                         # assert read_seq != ""
                         # assert read_len > 0
