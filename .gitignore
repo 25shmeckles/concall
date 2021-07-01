@@ -1,5 +1,6 @@
 # ignore irrelevant files
 *.sif
+
 # ignore folders
 log
 data
@@ -8,16 +9,28 @@ configfiles
 !configfiles/config-TEST*
 reports
 summary
+
 # ignore git
 .gitmodules
 .travis.yml
 .gitlab-ci.yml
 .coveragerc
 
-#ignore pycharm
+# ignore pycharm
 .idea/
+
 # ignore snakemake metadata
 .snakemake
+
 # test
 test/output
 !test/output/TEST_snakemake2
+
+# macOS
+.DS_Store
+
+# notebook
+.ipynb_checkpoints
+
+# python cache
+__pycache__/
