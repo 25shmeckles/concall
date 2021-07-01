@@ -1,21 +1,22 @@
 import pysam
 import collections
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 import os
-#https://towardsdatascience.com/pairwise-sequence-alignment-using-biopython-d1a9d0ba861f
-from Bio import pairwise2
-from Bio.pairwise2 import format_alignment
-import re
 import pickle
-import seaborn as sns
-import numpy as np
-import itertools
-from scipy.signal import find_peaks
-from get_bb import get_barcode
+from tagging.get_bb import get_barcode
+# https://towardsdatascience.com/pairwise-sequence-alignment-using-biopython-d1a9d0ba861f
+
 
 def tag_bam(dic, in_consensus, filename_prefix, out_consensus=None, min_repeats=0):
+    """
+    Function to tag bam files with stats file.
+    :param dic: dictoinary containing stats file information from the old conbow pipeline
+    :param in_consensus:
+    :param filename_prefix:
+    :param out_consensus:
+    :param min_repeats:
+    :return:
+    """
     if out_consensus == None:
         out_consensus = in_consensus
 
@@ -52,7 +53,8 @@ def tag_bam(dic, in_consensus, filename_prefix, out_consensus=None, min_repeats=
 
     #     os.system(f"samtools view -h -F 256 {out_consensus}/{filename_exc}_{min_repeats}.tagged.bam > {out_consensus}/{filename_exc}_{min_repeats}.tagged.bam")
     os.system(
-        f"samtools sort -l 9 {out_consensus}/{filename_prefix}_{min_repeats}.tagged.bam -o {out_consensus}/{filename_prefix}_{min_repeats}.tagged.sorted.bam")
+        f"samtools sort -l 9 {out_consensus}/{filename_prefix}_{min_repeats}.tagged.bam -o \
+        {out_consensus}/{filename_prefix}_{min_repeats}.tagged.sorted.bam")
     os.system(f"samtools index {out_consensus}/{filename_prefix}_{min_repeats}.tagged.sorted.bam")
 
 
@@ -78,7 +80,7 @@ def get_stats_tag_bam(in_consensus,
         count = [line.rstrip() for line in f]
 
     # get barcode from bb bam file
-    barcode_df = get_barcode(bb_bam, barcode_pos=[32, 62, 79, 97])
+    barcode_df = get_barcode(bb_bam, barcode_pos=barcode_pos)
     print("time", len(time))
     print("count", len(count))
     print("bar_df", barcode_df.shape)
@@ -100,8 +102,7 @@ def get_stats_tag_bam(in_consensus,
             count_dic[readname]['timestamp'] = time[readname]
         except Exception as e:
             count_dic[readname]['timestamp'] = "none"
-
-            #             print(e, "cannot find time_stamp")
+            # print(e, "cannot find time_stamp")
             pass
         try:
             # tag as 'RX' to replace "UMI" in single cell sequencing
@@ -119,7 +120,7 @@ def get_stats_tag_bam(in_consensus,
             print(e, "CSV and Data frame length is not equal. Could be version problem")
 
     # write sam files
-    if write_file == True:
+    if write_file is True:
         tag_bam(dic=count_dic, in_consensus=in_consensus, filename_prefix=filename_prefix, out_consensus=out_consensus,
                 min_repeats=min_repeats)
 
@@ -133,6 +134,6 @@ if __name__ == '__main__':
     out_consensus = "../DER4386/"
     filename_exc = "all-ins"
     stats_file_path = "../DER4386/DER4386-new-stats.csv"
-    wg_df = get_stats_tag_bam(in_consensus, filename_exc, stats_file_path, out_consensus=None )
+    wg_df = get_stats_tag_bam(in_consensus, filename_exc, stats_file_path, out_consensus=None)
 
 #    DER4622_bc_df_BB25 = get_barcode(bb_bam, barcode_pos=[32, 62, 79, 97], barcode_name="BB25", barcode_fa=None)

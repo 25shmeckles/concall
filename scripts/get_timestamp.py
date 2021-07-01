@@ -1,50 +1,30 @@
+import gzip
 import pickle
 import collections
 from dateutil import parser
 import os
 import argparse
 import re
+import pysam
 
-def get_timestamp(in_path, out_path, name, datype="fa"):
+def get_timestamp(in_path, out_path):
     time_string = collections.OrderedDict()
     time_stamp = collections.OrderedDict()
+    for filename in os.listdir(in_path):
+        with pysam.FastxFile(f"{in_path}/{filename}") as fh:
+            for entry in fh:
+                readname = entry.name
+                if not readname:
+                    continue
+                time_string[readname] = entry.comment.split(" ")[3].split("=")[1][:-1] # tstamp[readname] = time (hh:mm:ss)
+                t = parser.isoparse(entry.comment.split(" ")[3].split("=")[1])
+                time_stamp[readname] = t.timestamp()
+    if out_path is None:
+        out_path = f"{in_path}_timestamp.pickle.gz"
 
-    if datype == "fq":
-        for file in os.listdir(in_path):
-            if file.endswith(".fastq"):
-                with open(os.path.join(in_path, file), "r") as file:
-                    content = file.read().splitlines()
-
-                for i, txt in enumerate(content):
-
-                    if i % 4 == 0:
-                        readname = txt.split(" ")[0][1:]
-                        time_string[readname] = txt.split(" ")[4].split("T")[1][:-1] # tstamp[readname] = time (hh:mm:ss)
-                        t = parser.isoparse(txt.split(" ")[4].split("=")[1])
-                        time_stamp[readname] = t.timestamp()
-    if datype == "fa":
-        for file in os.listdir(in_path):
-            if file.endswith(".fasta"):
-                with open(os.path.join(in_path, file), "r") as file:
-                    content = file.read().splitlines()
-                try:
-                    for i, txt in enumerate(content):
-                        if i % 2 == 0:
-                            readname = txt.split(" ")[0][1:]
-                            a = re.search("start_time=.*T", txt )
-                            if a is not None:
-                                ind = a.span()[1]
-                                time_string[readname] = txt[ind:ind+8]
-                            else:
-                                raise "unexpected readnames. Check fasta files."
-                except Exception as e:
-                    raise "unexpected results. Check fasta files format does it contains space and start_time = xxx"
-
-    if out_path == None:
-        out_path= f"{in_path}_timestamp.pickle.gz"
-
-    with open(out_path, 'wb') as handle:
+    with gzip.open(out_path, 'wb') as handle:
         pickle.dump(time_string, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 if __name__ == '__main__':
     pa = argparse.ArgumentParser(description='Get timestamp of nanopore reads from raw fastq files.')
@@ -52,12 +32,10 @@ if __name__ == '__main__':
                         help='provide exact (not relative) path to fq/fa folder of reads of interests.')
     pa.add_argument('-o', "--out_path", type=str,
                         help='provide path to store timestamp info as pickle.')
-    pa.add_argument('-n', "--sample_name", type=str,
-                        help='provide sample name.')
-    pa.add_argument('-t', "--datype", type=str, default="fa",
-                        help='fa or fq. default = fa')
 
     args = pa.parse_args()
-    get_timestamp(args.in_path, args.out_path,  args.sample_name, args.datype)
+    get_timestamp(args.in_path, args.out_path)
 
-
+    with gzip.open(args.out_path, 'rb') as f:
+        file_content = pickle.load(f)
+        print("timestamp.pickle.gz is a OrderedDict containing", len(file_content), "readname: timestamp pairs.")

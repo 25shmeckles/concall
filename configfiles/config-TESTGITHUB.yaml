@@ -1,7 +1,7 @@
 rawdir:
-    test/test_data/TEST40
+    test/test_data/TEST_minimal_gz
 SUP_SAMPLES:
-    TEST40
+    TEST_minimal_gz
 gz:
     True
 genome_hg38: 

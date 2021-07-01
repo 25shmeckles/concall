@@ -2,6 +2,17 @@
 
 # User defined file prefix name
 SUP_SAMPLES = config['SUP_SAMPLES']
+
+with open(config['backbone_fa'], 'r') as f:
+    for line in f:
+        if line.startswith('>'):
+            bb_name = line.strip()[1:]
+            break
+
+#bb_name = config['backbone_fa'].split("/")[-1].split(".")[0]
+print("BB_NAME", bb_name)
+
+
 # check input data type. Should be specified in configfiles.
 if config['gz'] == True:
     SAMPLES, = glob_wildcards(config['rawdir']+"/{sample}.fastq.gz")
@@ -28,7 +39,7 @@ except Exception as e:
 # end products of this pipeline
 rule all:
     input:
-        expand("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_timestamp.pickle", SUP_SAMPLE=SUP_SAMPLES),
+        expand("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_timestamp.pickle.gz", SUP_SAMPLE=SUP_SAMPLES),
 # bam files index for tide and tide_fl 
         expand("output/{SUP_SAMPLE}/07_stats_done/bam_index_tide.done", SUP_SAMPLE=SUP_SAMPLES),
 # samtool stats --without rotation
@@ -45,6 +56,9 @@ rule all:
         expand("output/{SUP_SAMPLE}/07_stats_done/bb_only_stats.done", SUP_SAMPLE=SUP_SAMPLES),
 # version log
         expand("output/{SUP_SAMPLE}/05_aggregated/VERSION.log", SUP_SAMPLE=SUP_SAMPLES),
+# tagged bam
+        expand("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_rotated.tagged.sorted.bam", SUP_SAMPLE=SUP_SAMPLES),
+
 localrules: all, get_timestamp, gz_fastq_get_fasta, fastq_get_fasta, aggregate_tide, get_version_control
 
 # check if use singularity image for Tidehunter or not. Please specify in configfiles.
@@ -87,17 +101,15 @@ rule get_version_control:
 # retrieve time_stamp for each read, store as pickle file.
 rule get_timestamp:
     input:
-        fasta = expand("output/{SUP_SAMPLE}/00_fasta/{SAMPLE}.fasta", SAMPLE=SAMPLES, SUP_SAMPLE=SUP_SAMPLES)
-        #fastq = ancient(config['rawdir']+"/{sample}.fastq.gz"),
+        fastx = expand(config['rawdir']+"/{sample}.fastq.gz" if config['gz'] else config['rawdir']+"/{sample}.fastq", sample=SAMPLES), 
     output:
-        timestamp = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_timestamp.pickle"
+        timestamp = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_timestamp.pickle.gz"
     params:
         fq = config['rawdir'],
-        name= "{SUP_SAMPLE}"
     conda:
         "envs/bt.yaml"
     shell:
-        "python scripts/get_timestamp.py -i {params.fq} -o {output.timestamp} -n {params.name} --datype 'fq' " 
+        "python scripts/get_timestamp.py -i {params.fq} -o {output.timestamp}"
 
 # convert fastq files to fasta files.
 rule gz_fastq_get_fasta:
@@ -105,7 +117,7 @@ rule gz_fastq_get_fasta:
     input:
         gz = ancient(config['rawdir']+"/{sample}.fastq.gz")
     output:
-        fasta = temp("output/{SUP_SAMPLE}/00_fasta/{sample}.fasta")
+        fasta = "output/{SUP_SAMPLE}/00_fasta/{sample}.fasta"
     conda:
         "envs/bt.yaml"
 #    log:
@@ -348,9 +360,10 @@ rule rotate_rca_reads_to_full_insert:
     output:
         fasta = temp("output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_rotated.fasta"),
     conda:
-        "envs/bt.yaml"
+        "envs/tagging.yaml"
     shell:
         "python circular/rotate_by_cigar.py -i {input.bam} -o {output.fasta}"
+
 
 rule remap_rotate_reads_by_bwa:
     input:
@@ -614,6 +627,46 @@ rule plot_samtools_stats_rotated:
         "samtools stats {input.bam} > {output.stats};"
         "cat {output.stats} | grep ^SN | cut -f 2- > {output.SN};"
         "cat {output.stats} | grep ^RL | cut -f 2- > {output.RL};"
+
+rule get_barcode:
+    input:
+        bb_fa_path = config['backbone_fa'],
+        bb_only_bam = rules.samtools_view_bb_only.output.view,
+        bb_index = "output/{SUP_SAMPLE}/07_stats_done/bam_index_tide.done"
+    output:
+        get_barcode_done = touch("output/{SUP_SAMPLE}/04_done/{SUP_SAMPLE}_get_barcode.done"),
+        bb_pickle_out = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_single.pickle.gz",
+    params:
+        bb_pickle_out_path = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}",
+        bb_name = bb_name,
+    conda:
+        "envs/tagging.yaml"
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * 1000,
+    shell:
+        "python tagging/get_bb.py --bb_name {params.bb_name} --bb_only_bam {input.bb_only_bam} " \
+        "--bb_fa_path {input.bb_fa_path} --out_path {params.bb_pickle_out_path}"
+
+
+rule tag_th_bam:
+    input:
+        bb_single = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_bb_single.pickle.gz",
+        rotated_bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_rotated.sorted.bam",
+        timestamp = rules.get_timestamp.output.timestamp,
+    output:
+        tagged_bam = "output/{SUP_SAMPLE}/05_aggregated/{SUP_SAMPLE}_tide_rotated.tagged.sorted.bam"
+    params:
+        view = False,
+    conda:
+        "envs/tagging.yaml"
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * 1000,
+    shell:
+        "python tagging/tag_th_bam.py --mapped_bam_path {input.rotated_bam} " \
+        "--bb_single {input.bb_single} --timestamp_df {input.timestamp}"
+
+
+# TODO: get BB name
 
 if config['mail']:
     onsuccess:

@@ -1,11 +1,13 @@
 rawdir:
-    test/test_data/TEST40
+    test/test_data/TEST_minimal_gz
 SUP_SAMPLES:
-    TEST40
+    TEST_minimal_gz
 gz:
     True
 genome:
     test/test_ref/test_ref.fasta  
+genome_hg38:
+    test/test_ref/test_ref.fasta
 backbone_fa:
     data/backbones/BB24.fa
 min_insert_length:

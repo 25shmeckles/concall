@@ -16,7 +16,7 @@ class RcaProcessor:
                 read_seq = read.get_forward_sequence()
                 if read.is_unmapped:
                     fasta.write(f">{read.qname}\n")
-                    fasta.write(f">{read.read_seq}\n")
+                    fasta.write(f"{read_seq}\n")
                 else:
                     if not read.is_supplementary:
                         left_soft = False
